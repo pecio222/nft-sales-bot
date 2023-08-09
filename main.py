@@ -5,7 +5,7 @@ import logging.config
 
 from dotenv import load_dotenv
 
-from observer import SaleFinderSubject, FilteredDiscordObserver
+from observer import SaleFinderSubject, FilteredDiscordObserver, FilteredTwitterObserver
 
 
 load_dotenv()
@@ -20,11 +20,18 @@ with open("configs/config.json", encoding="UTF-8") as g:
 async def main():
     sale_finder_subject = SaleFinderSubject()
 
-    for channel in configs["channels"]:
-        if configs["channels"][channel]["turnedOn"]:
-            observer = FilteredDiscordObserver(configs["channels"][channel])
-            if configs["channels"][channel]["filter"]:
-                observer.set_filter(configs["channels"][channel]["filter"])
+    for channel in configs["discordChannels"]:
+        if configs["discordChannels"][channel]["turnedOn"]:
+            observer = FilteredDiscordObserver(configs["discordChannels"][channel])
+            if configs["discordChannels"][channel]["filter"]:
+                observer.set_filter(configs["discordChannels"][channel]["filter"])
+            sale_finder_subject.attach(observer)
+
+    for twitter_account in configs["twitterBots"]:
+        if configs["twitterBots"][twitter_account]["turnedOn"]:
+            observer = FilteredTwitterObserver(configs["twitterBots"][twitter_account])
+            if configs["twitterBots"][twitter_account]["filter"]:
+                observer.set_filter(configs["twitterBots"][twitter_account]["filter"])
             sale_finder_subject.attach(observer)
 
     while True:
