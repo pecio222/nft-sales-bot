@@ -1,3 +1,10 @@
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+CONFIG_PATH = os.getenv("CONFIG_PATH")
+
 JOEPEGS_CDN = "https://img.joepegs.com/cdn-cgi/image/width=800,height=800/"
 
 THUMBNAIL_URLS = {

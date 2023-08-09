@@ -6,14 +6,14 @@ import logging.config
 from dotenv import load_dotenv
 
 from observer import SaleFinderSubject, FilteredDiscordObserver, FilteredTwitterObserver
-
+import configs.constants as constants
 
 load_dotenv()
-with open("configs/log_config.json", "r", encoding="UTF-8") as stream:
+with open(f"{constants.CONFIG_PATH}//log_config.json", "r", encoding="UTF-8") as stream:
     config = json.load(stream)
 logging.config.dictConfig(config)
 logger = logging.getLogger("standard")
-with open("configs/config.json", encoding="UTF-8") as g:
+with open(f"{constants.CONFIG_PATH}/config.json", encoding="UTF-8") as g:
     configs = json.load(g)
 
 
