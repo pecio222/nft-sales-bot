@@ -6,9 +6,11 @@ import time
 import logging
 import logging.config
 from typing import Optional
+from abc import ABC, abstractmethod
 import asyncio
 
 from discord_webhook import DiscordEmbed, DiscordWebhook
+import tweepy
 
 from data_classes import EmbedData, ItemSale
 from api_calls import ApiCalls
@@ -33,7 +35,7 @@ class SaleFinderSubject:
     avax_price_in_usd: float = 0
     sale_to_notify: ItemSale
     embed_data: EmbedData
-    _observers: list[FilteredDiscordObserver] = []
+    _observers: list[FilteredObserver] = []
     _observed_collections: list[str] = []
     _last_notified_transactions: list[str]
     last_checked_avax_price_at: float = 0
@@ -43,11 +45,11 @@ class SaleFinderSubject:
             self._last_notified_transactions = json.load(file)
         self.JOEPEGS_API_KEY: Optional[str] = os.getenv("JOEPEGS_API_KEY")
 
-    def attach(self, observer: FilteredDiscordObserver) -> None:
+    def attach(self, observer: FilteredObserver) -> None:
         self._observers.append(observer)
         logger.debug("Subject: Attached an observer.")
 
-    def detach(self, observer: FilteredDiscordObserver) -> None:
+    def detach(self, observer: FilteredObserver) -> None:
         self._observers.remove(observer)
         logger.debug("Subject: Detached an observer.")
 
@@ -196,7 +198,8 @@ class SaleFinderSubject:
         for sale in self.sorted_token_sale_list:
             if self.filter_collections(sale.contract_id):
                 self.sale_to_notify: ItemSale = sale  # todo
-                self.embed = self._prepare_embed(sale)
+                self.embed_data = EmbedData(sale)
+                self.discord_embed = self._prepare_discord_embed()
                 self._notify()
                 self._last_notified_transactions.append(sale.transaction_id)
 
@@ -206,9 +209,9 @@ class SaleFinderSubject:
             or len(self._observed_collections) == 0
         )
 
-    def _prepare_embed(self, sale):
+    def _prepare_discord_embed(self):
         embed = DiscordEmbed()
-        embed_data = EmbedData(sale)
+        embed_data = self.embed_data
         if embed_data.image_url:
             embed.set_image(url=embed_data.image_url)
 
@@ -265,28 +268,14 @@ class SaleFinderSubject:
             )
 
 
-class FilteredDiscordObserver:
-    """
-    Sends Discord message when new sale happens
-    """
-
-    def __init__(self, _credentials: dict[str, str]) -> None:
-        self.credentials: dict[str, str] = _credentials
-        logger.info(
-            "Getting discord webhook url from %s", self.credentials["envWebhookName"]
-        )
-        self.DISCORD_WEBHOOK_URL: Optional[str] = os.getenv(
-            self.credentials["envWebhookName"]
-        )
-        self._observed_collections: list = []
-
+class FilteredObserver(ABC):
     def set_filter(self, collection_ids: list[str]) -> None:
         self._observed_collections = [
             collection.lower() for collection in collection_ids
         ]
         logger.info(
             "Filter was set up for %s. Will only notify about these collections: %s",
-            self.credentials["envWebhookName"],
+            self.credentials["envName"],
             self._observed_collections,
         )
 
@@ -295,6 +284,22 @@ class FilteredDiscordObserver:
             contract_id in self._observed_collections
             or self._observed_collections == []
         )
+
+    @abstractmethod
+    def update(self, data):
+        pass
+
+
+class FilteredDiscordObserver(FilteredObserver):
+    """
+    Sends Discord message when new sale happens
+    """
+
+    def __init__(self, _credentials: dict[str, str]) -> None:
+        self.credentials: dict[str, str] = _credentials
+        logger.info("Getting discord webhook url from %s", self.credentials["envName"])
+        self.DISCORD_WEBHOOK_URL: Optional[str] = os.getenv(self.credentials["envName"])
+        self._observed_collections: list = []
 
     def update(self, subject: SaleFinderSubject) -> None:
         self.webhook = DiscordWebhook(
@@ -305,19 +310,68 @@ class FilteredDiscordObserver:
         )
 
         if self.filter_collections(subject.sale_to_notify.contract_id):
-            self.webhook.add_embed(subject.embed)
+            self.webhook.add_embed(subject.discord_embed)
             response = self.webhook.execute()
             if response.status_code == 200:
                 logger.debug(
                     "%s successfully sent %s sale notification to discord",
-                    self.credentials["envWebhookName"],
+                    self.credentials["envName"],
                     subject.sale_to_notify.item_name,
                 )
             else:
                 logger.warning(
                     "%s failed sending %s sale notification to discord due to status code %s, response %s",
-                    self.credentials["envWebhookName"],
+                    self.credentials["envName"],
                     subject.sale_to_notify.item_name,
                     response.status_code,
                     response,
                 )
+
+
+class FilteredTwitterObserver(FilteredObserver):
+    """
+    Sends Tweet when new sale happens
+    """
+
+    def __init__(self, _credentials: dict[str, str]) -> None:
+        self.credentials: dict[str, str] = _credentials
+        logger.info("Getting twitter credentials from %s", self.credentials["envName"])
+        self._observed_collections: list = []
+
+        env_name = self.credentials["envName"]
+        access_token = os.environ.get(f"{env_name}_ACCESS_TOKEN")
+        access_token_secret = os.environ.get(f"{env_name}_ACCESS_TOKEN_SECRET")
+        consumer_key = os.environ.get(f"{env_name}_API_KEY")
+        consumer_secret = os.environ.get(f"{env_name}_API_KEY_SECRET")
+
+        self.client = tweepy.Client(
+            consumer_key=consumer_key,
+            consumer_secret=consumer_secret,
+            access_token=access_token,
+            access_token_secret=access_token_secret,
+        )
+
+    def update(self, subject: SaleFinderSubject) -> None:
+        if subject.embed_data.last_sold_for == constants.NEVER_SOLD:
+            last_sold = constants.NEVER_SOLD
+        else:
+            last_sold = f"Last sold for {subject.embed_data.last_sold_for}"
+
+        tweet_text = (
+            subject.embed_data.token_sale.item_name
+            + " sold for "
+            + subject.embed_data.sold_for_value
+            + "\n"
+            + last_sold
+            + "\n"
+            + subject.embed_data.joepegs_token_url
+        )
+
+        try:
+            self.client.create_tweet(text=tweet_text)
+        except Exception as e:
+            logger.warning(
+                "Failed to send tweet about %s. Exception: %s",
+                subject.sale_to_notify.item_name,
+                e,
+            )

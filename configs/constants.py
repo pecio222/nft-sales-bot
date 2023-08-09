@@ -5,5 +5,7 @@ THUMBNAIL_URLS = {
     "unverified": "https://i.imgur.com/Vnkwyv3.png",
 }
 
+NEVER_SOLD = "Never sold before!"
+
 # how often should AVAX price be refreshed; value in seconds
 GET_AVAX_PRICE_FREQUENCY = 300
