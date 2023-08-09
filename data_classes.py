@@ -6,7 +6,7 @@ import logging
 import logging.config
 import urllib.parse
 
-with open("configs/log_config.json", "r", encoding="UTF-8") as stream:
+with open(f"{constants.CONFIG_PATH}/log_config.json", "r", encoding="UTF-8") as stream:
     config = json.load(stream)
 logging.config.dictConfig(config)
 logger = logging.getLogger("standard")
@@ -79,7 +79,7 @@ class EmbedData:
 
     def __post_init__(self):
         self.image_url = f"{constants.JOEPEGS_CDN}{self.token_sale.img_link}"
-        self.joepegs_token_url = f"https://joepegs.com/item/{self.token_sale.contract_id}/{self.token_sale.token_id}"
+        self.joepegs_token_url = f"https://joepegs.com/item/avalanche/{self.token_sale.contract_id}/{self.token_sale.token_id}"
 
         seller_url = f"https://joepegs.com/profile/{self.token_sale.sold_by_full}"
         buyer_url = f"https://joepegs.com/profile/{self.token_sale.bought_by_full}"

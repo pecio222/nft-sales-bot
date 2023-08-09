@@ -16,12 +16,11 @@ from data_classes import EmbedData, ItemSale
 from api_calls import ApiCalls
 import configs.constants as constants
 
-
-with open("configs/log_config.json", "r", encoding="UTF-8") as stream:
+with open(f"{constants.CONFIG_PATH}/log_config.json", "r", encoding="UTF-8") as stream:
     config = json.load(stream)
 logging.config.dictConfig(config)
 logger = logging.getLogger("standard")
-with open("configs/config.json", encoding="UTF-8") as g:
+with open(f"{constants.CONFIG_PATH}/config.json", encoding="UTF-8") as g:
     configs = json.load(g)
 
 
@@ -41,7 +40,9 @@ class SaleFinderSubject:
     last_checked_avax_price_at: float = 0
 
     def __init__(self) -> None:
-        with open("configs/last_notified_transactions.json", encoding="UTF-8") as file:
+        with open(
+            f"{constants.CONFIG_PATH}/last_notified_transactions.json", encoding="UTF-8"
+        ) as file:
             self._last_notified_transactions = json.load(file)
         self.JOEPEGS_API_KEY: Optional[str] = os.getenv("JOEPEGS_API_KEY")
 
@@ -253,7 +254,9 @@ class SaleFinderSubject:
 
     def _write_notified_sales_to_file(self):
         with open(
-            "configs/last_notified_transactions.json", mode="w", encoding="UTF-8"
+            f"{constants.CONFIG_PATH}/last_notified_transactions.json",
+            mode="w",
+            encoding="UTF-8",
         ) as file:
             _saving_amount = int(configs["general"]["recentSalesAmount"]) * 2
             if len(self._last_notified_transactions) > _saving_amount:

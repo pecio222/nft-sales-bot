@@ -9,8 +9,10 @@ from typing import Optional
 import httpx
 from dotenv import load_dotenv
 
+import configs.constants as constants
+
 logger = logging.getLogger("standard")
-with open("configs/config.json", encoding="UTF-8") as g:
+with open(f"{constants.CONFIG_PATH}/config.json", encoding="UTF-8") as g:
     configs = json.load(g)
 load_dotenv()
 JOEPEGS_API_KEY: Optional[str] = os.getenv("JOEPEGS_API_KEY")
