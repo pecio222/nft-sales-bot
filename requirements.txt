@@ -1,3 +1,0 @@
-discord-webhook==0.16.3
-python-dotenv==0.16.0
-httpx==0.23.0
