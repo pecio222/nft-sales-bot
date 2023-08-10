@@ -6,10 +6,11 @@ import logging.config
 from dotenv import load_dotenv
 
 from observer import SaleFinderSubject, FilteredDiscordObserver, FilteredTwitterObserver
+from api_calls import TwitterImageUploader
 import configs.constants as constants
 
 load_dotenv()
-with open(f"{constants.CONFIG_PATH}//log_config.json", "r", encoding="UTF-8") as stream:
+with open(f"{constants.CONFIG_PATH}/log_config.json", "r", encoding="UTF-8") as stream:
     config = json.load(stream)
 logging.config.dictConfig(config)
 logger = logging.getLogger("standard")
@@ -33,6 +34,12 @@ async def main():
             if configs["twitterBots"][twitter_account]["filter"]:
                 observer.set_filter(configs["twitterBots"][twitter_account]["filter"])
             sale_finder_subject.attach(observer)
+
+            # TODO overwrites when more twitter clients
+            twitter_uploader = TwitterImageUploader(
+                configs["twitterBots"][twitter_account]
+            )
+            sale_finder_subject.set_twitter_uploader(twitter_uploader)
 
     while True:
         try:

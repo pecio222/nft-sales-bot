@@ -49,7 +49,11 @@ class ItemSale:
         self.bought_by: str = self.bought_by_full[:5] + "..." + self.bought_by_full[-4:]
 
         if self.last_sales[0]["image"]:
-            self.img_link: str = urllib.parse.quote(self.last_sales[0]["image"])
+            # TODO create image from svg
+            if "data:image/svg+xml;base64," in self.last_sales[0]["image"]:
+                self.img_link = ""
+            else:
+                self.img_link: str = urllib.parse.quote(self.last_sales[0]["image"])
         else:
             self.img_link = ""
         self.collectionName: str = self.last_sales[0]["collectionName"]

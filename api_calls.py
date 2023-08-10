@@ -1,12 +1,15 @@
 import os
+import io
 import time
 import json
 import logging
 import logging.config
 import asyncio
-from typing import Optional
+import urllib
+from typing import Optional, Any
 
 import httpx
+import tweepy
 from dotenv import load_dotenv
 
 import configs.constants as constants
@@ -89,6 +92,8 @@ class ApiCalls:
 
     async def ask_jopegs_internal(self, url: str, parent_function: str):
         for request_attempt in range(self.connection_tries):
+            # dummy response to avoid UnboundLocalError: local variable 'request' referenced before assignment
+            request = httpx.Response(666)
             try:
                 request = await self.client.get(url)
                 if request.status_code == 200:
@@ -112,10 +117,71 @@ class ApiCalls:
                     2 - request_attempt,
                 )
                 if request_attempt == self.connection_tries - 1:
-                    logger.warning("Error during request: %s", url)
-                    logger.warning(
-                        "Response status = %s, response = %s",
-                        request.status_code,
-                        request.json(),
-                        exc_info=True,
-                    )
+                    if request.status_code == 666:
+                        logger.warning(
+                            "Error during request: %s request variable wasn't referenced",
+                            url,
+                        )
+                    else:
+                        logger.warning("Error during request: %s", url)
+                        logger.warning(
+                            "Response status = %s, response = %s",
+                            request.status_code,
+                            request.json(),
+                            exc_info=True,
+                        )
+
+
+class TwitterImageUploader:
+    def __init__(self, credentials) -> None:
+        # connect to twitter API
+        env_name = credentials["envName"]
+        access_token = os.environ.get(f"{env_name}_ACCESS_TOKEN")
+        access_token_secret = os.environ.get(f"{env_name}_ACCESS_TOKEN_SECRET")
+        consumer_key = os.environ.get(f"{env_name}_API_KEY")
+        consumer_secret = os.environ.get(f"{env_name}_API_KEY_SECRET")
+
+        auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+        auth.set_access_token(access_token, access_token_secret)
+        self.api = tweepy.API(auth)
+
+    def get_media_id(self, url: str) -> int:
+        image = self.get_image_from_url(url)
+        media_id = self.upload_image_to_twitter(image)
+        return media_id
+
+    def get_image_from_url(self, url: str) -> io.BytesIO:
+        url = urllib.parse.unquote(url)
+        try:
+            response = httpx.get(url)
+        except Exception:
+            logger.warning("Failed to download image from %s", url, exc_info=True)
+            return ""
+        if response.status_code == 200:
+            content_length = int(response.headers.get("Content-Length", 0))
+            if content_length <= 5 * 1024 * 1024:  # 5MB in bytes
+                file_io = io.BytesIO(response.content)
+                logger.debug("Image from %s downloaded", url)
+                return file_io
+            else:
+                logger.warning(
+                    "Image from %s is too big. Content-Length: %s",
+                    url,
+                    content_length,
+                )
+                return ""
+
+        else:
+            logger.warning(
+                "Failed to download image from %s. Status code: %s",
+                url,
+                response.status_code,
+            )
+            return ""
+
+    def upload_image_to_twitter(self, file_io: Any) -> int:
+        if file_io:
+            media = self.api.media_upload(filename="upload", file=file_io)
+            return media.media_id
+        else:
+            return 0
