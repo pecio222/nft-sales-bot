@@ -1,6 +1,7 @@
 from __future__ import annotations
 import operator
 import os
+import io
 import json
 import time
 import logging
@@ -13,7 +14,7 @@ from discord_webhook import DiscordEmbed, DiscordWebhook
 import tweepy
 
 from data_classes import EmbedData, ItemSale
-from api_calls import ApiCalls
+from api_calls import ApiCalls, TwitterImageUploader
 import configs.constants as constants
 
 with open(f"{constants.CONFIG_PATH}/log_config.json", "r", encoding="UTF-8") as stream:
@@ -62,6 +63,9 @@ class SaleFinderSubject:
             "Filter was set up. Will only notify about these collections: %s",
             self._observed_collections,
         )
+
+    def set_twitter_uploader(self, twitter_uploader: TwitterImageUploader) -> None:
+        self.twitter_uploader = twitter_uploader
 
     async def run(self) -> None:
         """
@@ -201,6 +205,9 @@ class SaleFinderSubject:
                 self.sale_to_notify: ItemSale = sale  # todo
                 self.embed_data = EmbedData(sale)
                 self.discord_embed = self._prepare_discord_embed()
+                self.twitter_media_id = self.twitter_uploader.get_media_id(
+                    sale.img_link
+                )
                 self._notify()
                 self._last_notified_transactions.append(sale.transaction_id)
 
@@ -371,7 +378,12 @@ class FilteredTwitterObserver(FilteredObserver):
         )
 
         try:
-            self.client.create_tweet(text=tweet_text)
+            if subject.twitter_media_id:
+                self.client.create_tweet(
+                    text=tweet_text, media_ids=[subject.twitter_media_id]
+                )
+            else:
+                self.client.create_tweet(text=tweet_text)
         except Exception as e:
             logger.warning(
                 "Failed to send tweet about %s. Exception: %s",
