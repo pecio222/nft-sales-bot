@@ -1,7 +1,7 @@
 {
   "general": {
-    "recentSalesAmount": "30",
-    "salesCallIntervalSeconds": 60,
+    "recentSalesAmount": "5",
+    "salesCallIntervalSeconds": 15,
     "oldestSaleToNotify": 7200
   },
   "discordChannels": {
@@ -9,18 +9,20 @@
       "turnedOn": true,
       "envName": "DISCORD_TEST_URL",
       "discordBotName": "NFT Sales Bot",
-      "filter": []
+      "collectionFilter": [],
+      "priceFilter": 0.1
     },
     "DiscordConfigExample2": {
       "turnedOn": true,
       "envName": "DISCORD_TEST_URL2",
       "discordBotName": "NFT Sales Bot",
-      "filter": [
+      "collectionFilter": [
         "0xc70df87e1d98f6a531c8e324c9bcec6fc82b5e8d",
         "0x2cd4dbcbfc005f8096c22579585fb91097d8d259",
         "0x3dd5e0f0659ca8b52925e504fe9f0250bfe68301",
         "0x77e0459eb2fefa3c772a7fabe45c746377b1ed10"
-      ]
+      ],
+      "priceFilter": 0.1
     }
   },
   "twitterBots": {
@@ -28,7 +30,8 @@
       "turnedOn": true,
       "envName": "TWITTER_TEST",
       "twitterBotName": "Joepegs Sales Bot",
-      "filter": []
+      "collectionFilter": [],
+      "priceFilter": 0.1
     }
   }
 }

@@ -279,7 +279,12 @@ class SaleFinderSubject:
 
 
 class FilteredObserver(ABC):
-    def set_filter(self, collection_ids: list[str]) -> None:
+    def __init__(self) -> None:
+        super().__init__()
+        self._observed_collections: list = []
+        self.min_price: float = 0
+
+    def set_collection_filter(self, collection_ids: list[str]) -> None:
         self._observed_collections = [
             collection.lower() for collection in collection_ids
         ]
@@ -289,11 +294,25 @@ class FilteredObserver(ABC):
             self._observed_collections,
         )
 
-    def filter_collections(self, contract_id: str) -> bool:
+    def filter_by_collection(self, contract_id: str) -> bool:
         return (
             contract_id in self._observed_collections
             or self._observed_collections == []
         )
+
+    def set_min_price(self, min_price: float) -> None:
+        self.min_price = min_price
+        logger.info(
+            "Filter was set up for %s. Will only notify about sales over %s AVAX",
+            self.credentials["envName"],
+            self.min_price,
+        )
+
+    def filer_by_price(self, price: float) -> bool:
+        return not self.min_price or price >= self.min_price
+
+    def should_be_notified(self, contract_id: str, price: int) -> bool:
+        return self.filter_by_collection(contract_id) and self.filer_by_price(price)
 
     @abstractmethod
     def update(self, data):
@@ -306,10 +325,10 @@ class FilteredDiscordObserver(FilteredObserver):
     """
 
     def __init__(self, _credentials: dict[str, str]) -> None:
+        super().__init__()
         self.credentials: dict[str, str] = _credentials
         logger.info("Getting discord webhook url from %s", self.credentials["envName"])
         self.DISCORD_WEBHOOK_URL: Optional[str] = os.getenv(self.credentials["envName"])
-        self._observed_collections: list = []
 
     def update(self, subject: SaleFinderSubject) -> None:
         self.webhook = DiscordWebhook(
@@ -319,23 +338,27 @@ class FilteredDiscordObserver(FilteredObserver):
             username=self.credentials["discordBotName"],
         )
 
-        if self.filter_collections(subject.sale_to_notify.contract_id):
-            self.webhook.add_embed(subject.discord_embed)
-            response = self.webhook.execute()
-            if response.status_code == 200:
-                logger.debug(
-                    "%s successfully sent %s sale notification to discord",
-                    self.credentials["envName"],
-                    subject.sale_to_notify.item_name,
-                )
-            else:
-                logger.warning(
-                    "%s failed sending %s sale notification to discord due to status code %s, response %s",
-                    self.credentials["envName"],
-                    subject.sale_to_notify.item_name,
-                    response.status_code,
-                    response,
-                )
+        if not self.should_be_notified(
+            subject.sale_to_notify.contract_id, subject.sale_to_notify.price_avax
+        ):
+            return
+
+        self.webhook.add_embed(subject.discord_embed)
+        response = self.webhook.execute()
+        if response.status_code == 200:
+            logger.debug(
+                "%s successfully sent %s sale notification to discord",
+                self.credentials["envName"],
+                subject.sale_to_notify.item_name,
+            )
+        else:
+            logger.warning(
+                "%s failed sending %s sale notification to discord due to status code %s, response %s",
+                self.credentials["envName"],
+                subject.sale_to_notify.item_name,
+                response.status_code,
+                response,
+            )
 
 
 class FilteredTwitterObserver(FilteredObserver):
@@ -344,9 +367,9 @@ class FilteredTwitterObserver(FilteredObserver):
     """
 
     def __init__(self, _credentials: dict[str, str]) -> None:
+        super().__init__()
         self.credentials: dict[str, str] = _credentials
         logger.info("Getting twitter credentials from %s", self.credentials["envName"])
-        self._observed_collections: list = []
 
         env_name = self.credentials["envName"]
         access_token = os.environ.get(f"{env_name}_ACCESS_TOKEN")
@@ -362,6 +385,11 @@ class FilteredTwitterObserver(FilteredObserver):
         )
 
     def update(self, subject: SaleFinderSubject) -> None:
+        if not self.should_be_notified(
+            subject.sale_to_notify.contract_id, subject.sale_to_notify.price_avax
+        ):
+            return None
+
         if subject.embed_data.last_sold_for == constants.NEVER_SOLD:
             last_sold = constants.NEVER_SOLD
         else:
