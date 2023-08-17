@@ -21,26 +21,37 @@ with open(f"{constants.CONFIG_PATH}/config.json", encoding="UTF-8") as g:
 async def main():
     sale_finder_subject = SaleFinderSubject()
 
-    for channel in configs["discordChannels"]:
-        if configs["discordChannels"][channel]["turnedOn"]:
-            observer = FilteredDiscordObserver(configs["discordChannels"][channel])
-            if configs["discordChannels"][channel]["filter"]:
-                observer.set_filter(configs["discordChannels"][channel]["filter"])
+    for _, channel_configs in configs["discordChannels"].items():
+        if channel_configs["turnedOn"]:
+            observer = FilteredDiscordObserver(channel_configs)
+
+            collectionFilter = channel_configs["collectionFilter"]
+            priceFilter = channel_configs["priceFilter"]
+
+            if collectionFilter:
+                observer.set_collection_filter(collectionFilter)
+            if priceFilter:
+                observer.set_min_price(priceFilter)
+
             sale_finder_subject.attach(observer)
 
-    for twitter_account in configs["twitterBots"]:
-        if configs["twitterBots"][twitter_account]["turnedOn"]:
-            observer = FilteredTwitterObserver(configs["twitterBots"][twitter_account])
-            if configs["twitterBots"][twitter_account]["filter"]:
-                observer.set_filter(configs["twitterBots"][twitter_account]["filter"])
+    for _, bot_configs in configs["twitterBots"].items():
+        if bot_configs["turnedOn"]:
+            observer = FilteredTwitterObserver(bot_configs)
+            collectionFilter = bot_configs["collectionFilter"]
+
+            priceFilter = bot_configs["priceFilter"]
+
+            if collectionFilter:
+                observer.set_collection_filter(collectionFilter)
+            if priceFilter:
+                observer.set_min_price(priceFilter)
+
             sale_finder_subject.attach(observer)
 
             # TODO overwrites when more twitter clients
-            twitter_uploader = TwitterImageUploader(
-                configs["twitterBots"][twitter_account]
-            )
+            twitter_uploader = TwitterImageUploader(bot_configs)
             sale_finder_subject.set_twitter_uploader(twitter_uploader)
-
     while True:
         try:
             await sale_finder_subject.run()

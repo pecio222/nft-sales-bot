@@ -181,7 +181,14 @@ class TwitterImageUploader:
 
     def upload_image_to_twitter(self, file_io: Any) -> int:
         if file_io:
-            media = self.api.media_upload(filename="upload", file=file_io)
-            return media.media_id
+            try:
+                media = self.api.media_upload(filename="upload", file=file_io)
+                return media.media_id
+            except Exception as e:
+                logger.warning(
+                    "Failed to upload image to twitter due to %s", e, exc_info=True
+                )
+                return 0
+
         else:
             return 0
