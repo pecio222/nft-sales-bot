@@ -6,6 +6,9 @@ import logging
 import logging.config
 import urllib.parse
 
+import base64
+from cairosvg import svg2png
+
 with open(f"{constants.CONFIG_PATH}/log_config.json", "r", encoding="UTF-8") as stream:
     config = json.load(stream)
 logging.config.dictConfig(config)
@@ -52,8 +55,14 @@ class ItemSale:
             # TODO create image from svg
             if "data:image/svg+xml;base64," in self.last_sales[0]["image"]:
                 self.img_link = ""
+                encoded = self.last_sales[0]["image"]
+                encoded = encoded.replace("data:image/svg+xml;base64,", "")
+                decoded = base64.b64decode(encoded)
+                self.svg_bytes = svg2png(bytestring=decoded)
+
             else:
                 self.img_link: str = urllib.parse.quote(self.last_sales[0]["image"])
+                self.svg_bytes = ""
         else:
             self.img_link = ""
         self.collectionName: str = self.last_sales[0]["collectionName"]

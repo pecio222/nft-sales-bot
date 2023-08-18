@@ -145,12 +145,16 @@ class TwitterImageUploader:
         auth.set_access_token(access_token, access_token_secret)
         self.api = tweepy.API(auth)
 
-    def get_media_id(self, url: str) -> int:
-        image = self.get_image_from_url(url)
+    def get_media_id(self, url: str, bytes) -> int:
+        image = self.get_image_from_url(url, bytes)
         media_id = self.upload_image_to_twitter(image)
         return media_id
 
-    def get_image_from_url(self, url: str) -> io.BytesIO:
+    def get_image_from_url(self, url: str, bytes) -> io.BytesIO:
+        if bytes:
+            # handle SVG upload
+            return io.BytesIO(bytes)
+
         url = urllib.parse.unquote(url)
         try:
             response = httpx.get(url)
