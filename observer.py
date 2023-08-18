@@ -206,7 +206,7 @@ class SaleFinderSubject:
                 self.embed_data = EmbedData(sale)
                 self.discord_embed = self._prepare_discord_embed()
                 self.twitter_media_id = self.twitter_uploader.get_media_id(
-                    sale.img_link
+                    sale.img_link, sale.svg_bytes
                 )
                 self._notify()
                 self._last_notified_transactions.append(sale.transaction_id)
@@ -220,6 +220,7 @@ class SaleFinderSubject:
     def _prepare_discord_embed(self):
         embed = DiscordEmbed()
         embed_data = self.embed_data
+
         if embed_data.image_url:
             embed.set_image(url=embed_data.image_url)
 
@@ -344,6 +345,10 @@ class FilteredDiscordObserver(FilteredObserver):
             return
 
         self.webhook.add_embed(subject.discord_embed)
+        if subject.sale_to_notify.svg_bytes:
+            self.webhook.add_file(
+                subject.sale_to_notify.svg_bytes, filename="image.png"
+            )
         response = self.webhook.execute()
         if response.status_code == 200:
             logger.debug(
