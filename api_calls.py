@@ -35,7 +35,7 @@ class ApiCalls:
         recent_sales_amount = configs["general"]["recentSalesAmount"]
         if int(recent_sales_amount) > 100:
             raise Exception("recentSalesAmount cannot exceed 100. Modify config")
-        url = f"https://api.joepegs.dev/v2/items?pageSize={recent_sales_amount}&pageNum=1&orderBy=recent_sale"
+        url = f"https://api.joepegs.dev/v3/items?pageSize={recent_sales_amount}&chains=['avalanche']&pageNum=1&orderBy=recent_sale"
         response = await self.ask_jopegs_internal(url, "ask_joepegs_about_sale")
         return response
 
@@ -73,7 +73,7 @@ class ApiCalls:
                     logger.warning("Error during request: %s", url, exc_info=True)
 
     async def ask_joepegs_about_floor(self, contract_id: str) -> float:
-        url = f"https://api.joepegs.dev/v2/collections/{contract_id}"
+        url = f"https://api.joepegs.dev/v3/collections/avalanche/{contract_id}"
         response = await self.ask_jopegs_internal(url, "ask_joepegs_about_floor")
         try:
             floor = round(float(response["floor"]) * 10 ** (-18), 2)
@@ -87,7 +87,7 @@ class ApiCalls:
     async def ask_joepegs_about_sale(
         self, contract_id: str, token_id: int
     ) -> list[dict]:
-        url = f"https://api.joepegs.dev/v2/activities/{contract_id}/tokens/{token_id}?pageSize=2&pageNum=1&filters=sale"
+        url = f"https://api.joepegs.dev/v3/activities/avalanche/{contract_id}/tokens/{token_id}?pageSize=2&pageNum=1&filters=sale"
         return await self.ask_jopegs_internal(url, "ask_joepegs_about_sale")
 
     async def ask_jopegs_internal(self, url: str, parent_function: str):
