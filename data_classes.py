@@ -33,6 +33,8 @@ class ItemSale:
         """
         self.sort_index = int(self.last_sales[0]["timestamp"])
         self.transaction_id: str = self.raw_sale["id"]
+        self.transaction_hash: str = self.last_sales[0]["transactionHash"]
+        self.transaction_link: str = f"https://snowtrace.io/tx/{self.transaction_hash}"
         self.contract_id: str = self.raw_sale["collection"]
         self.token_id: int = self.raw_sale["tokenId"]
         self.verified: str = self.raw_sale["verified"]

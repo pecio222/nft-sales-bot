@@ -408,6 +408,8 @@ class FilteredTwitterObserver(FilteredObserver):
             + last_sold
             + "\n"
             + subject.embed_data.joepegs_token_url
+            + "\n"
+            + subject.sale_to_notify.transaction_link
         )
 
         try:
